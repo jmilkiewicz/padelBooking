@@ -31,10 +31,10 @@ data class SessionOverflow(
 
 sealed interface ReservationPaidEvents
 
-data class ReservationToPaidReservation(val reservation: Reservation, val paidReservation: PaidReservation) :
+data class ReservationPaid(val p: Pair<Reservation, PaidReservation>) :
     ReservationPaidEvents
 
-data class SessionReservationsCompleted(val sessionId: SessionId) :
+data class SessionMembersCompleted(val sessionId: SessionId) :
     ReservationPaidEvents
 
 data class ReservationToBeRepaid(val reservation: Reservation) :
@@ -97,7 +97,8 @@ data class SessionData(
                 user = user,
                 createdAt = now,
                 sessionId = id,
-                cost
+                cost,
+                status = ReservationStatus.CREATED
             )
         )
     }
@@ -114,16 +115,16 @@ data class SessionData(
 
         //co jak już mamy komplet ?
         if (paidReservations.size == sessionSize) {
-            return SessionOverflow(ReservationToBeRepaid(reservation))
+            return SessionOverflow(ReservationToBeRepaid(reservation.asOverflow()))
         }
 
 
         val pendingReservation = pendingReservations.first { it.id == reservation.id }
-        val paidReservation = pendingReservation.asPaid("someTransactionId", now)
-        val result = listOf(ReservationToPaidReservation(pendingReservation, paidReservation))
+        val reservations = pendingReservation.asPaid("someTransactionId", now)
+        val result = listOf(ReservationPaid(reservations))
 
         val events = if (paidReservations.size + 1 == sessionSize) {
-            result + listOf(SessionReservationsCompleted(id))
+            result + listOf(SessionMembersCompleted(id))
         } else result
 
         return Success(events)
@@ -142,7 +143,8 @@ data class SessionData(
     }
 
     private fun hasAlreadySignedUp(user: User, now: ZonedDateTime): Boolean {
-        return paidReservations.any { it.user.id == user.id } || lastHourPendingReservations(now).any { it.user.id == user.id }
+        return paidReservations.any { it.user.id == user.id } ||
+                lastHourPendingReservations(now).any { it.user.id == user.id }
     }
 
     private fun levelMatches(level: Int, now: ZonedDateTime): Pair<Boolean, Int> {
@@ -165,7 +167,7 @@ data class SessionData(
 
     fun lastHourPendingReservations(now: ZonedDateTime): List<Reservation> {
         val oneHourAgo = now.minus(1, ChronoUnit.HOURS)
-        return pendingReservations.filter { it.wasCreatedAfter(oneHourAgo) }
+        return pendingReservations.filter { it.wasCreatedAfter(oneHourAgo) && it.isCreated() }
     }
 
     private fun levelMatchesAgainstPaid(): Int? {

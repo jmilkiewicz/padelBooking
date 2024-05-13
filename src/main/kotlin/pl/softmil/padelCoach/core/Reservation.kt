@@ -6,7 +6,6 @@ import java.util.UUID
 
 enum class ReservationStatus {
     CREATED,
-    CANCELLED,
     PAID,
     TIMED_OUT,
     TERMINATED
@@ -21,18 +20,26 @@ data class Reservation(
     val status: ReservationStatus
 ) {
     fun wasCreatedAfter(ts: ZonedDateTime): Boolean = ts.isBefore(createdAt)
-    fun asPaid(transactionId: String, paidAt: ZonedDateTime): PaidReservation {
-        return PaidReservation(
-            id = PaidReservationId(UUID.randomUUID()),
-            user = user,
-            transactionId = transactionId,
-            sessionId = sessionId,
-            createdAt = createdAt,
-            paidAt = paidAt,
-            reservationId = id,
-            //do we get it from PayPal?
-            paid = this.cost
+    fun asPaid(transactionId: String, paidAt: ZonedDateTime): Pair<Reservation, PaidReservation> {
+        return Pair(
+            this.copy(status = ReservationStatus.PAID),
+            PaidReservation(
+                id = PaidReservationId(UUID.randomUUID()),
+                user = user,
+                transactionId = transactionId,
+                sessionId = sessionId,
+                createdAt = createdAt,
+                paidAt = paidAt,
+                reservationId = id,
+                //do we get it from PayPal?
+                paid = this.cost
+            )
         )
+    }
+
+    fun isCreated(): Boolean = this.status == ReservationStatus.CREATED
+    fun asOverflow(): Reservation {
+        return this.copy(status = ReservationStatus.TERMINATED)
     }
 }
 

@@ -14,7 +14,7 @@ sealed class PaymentCompletedResult
 
 data class PaymentCompletedSuccess(val session: Session) : PaymentCompletedResult()
 
-//jakie paramery
+//jakie parametry
 object PaymentCompletedFailure : PaymentCompletedResult()
 
 class ReservationPaymentCompleted(
