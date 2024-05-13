@@ -132,7 +132,7 @@ data class SessionData(
         if (paidReservations.size == sessionSize) {
             return SessionOverflow(ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow()))
         }
-        return asSuccessfullyPaid(reservation, now, sessionSize)
+        return success(reservation, now, sessionSize)
     }
 
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult {
@@ -150,7 +150,7 @@ data class SessionData(
     }
 
 
-    private fun asSuccessfullyPaid(
+    private fun success(
         reservation: Reservation,
         now: ZonedDateTime,
         sessionSize: Int

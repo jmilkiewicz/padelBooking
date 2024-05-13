@@ -11,32 +11,32 @@ import pl.softmil.padelCoach.gateway.UserRepository
 import java.time.ZonedDateTime
 
 
-sealed interface CancelReservationResult {
-    object Success : CancelReservationResult
-    object Invalid : CancelReservationResult
-    data class TooLate(val deadline: ZonedDateTime) : CancelReservationResult
+sealed interface CancelPaidReservationResult {
+    object Success : CancelPaidReservationResult
+    object Invalid : CancelPaidReservationResult
+    data class TooLate(val deadline: ZonedDateTime) : CancelPaidReservationResult
 }
 
-class CancelReservation(
+class CancelPaidReservation(
     private val sessionRepository: SessionRepository, private val userRepository: UserRepository
 ) {
-    fun cancel(userId: UserId, sessionId: SessionId, now: ZonedDateTime): CancelReservationResult {
+    fun cancel(userId: UserId, sessionId: SessionId, now: ZonedDateTime): CancelPaidReservationResult {
         val user = getUserById(userId)
         val session = getSessionById(sessionId)
 
         val result = session.cancelPaidReservation(user, now)
         return when (result) {
-            is PaidReservationCancelledResult.Missing -> CancelReservationResult.Invalid
-            is PaidReservationCancelledResult.TooLate -> CancelReservationResult.TooLate(result.deadLine)
+            is PaidReservationCancelledResult.Missing -> CancelPaidReservationResult.Invalid
+            is PaidReservationCancelledResult.TooLate -> CancelPaidReservationResult.TooLate(result.deadLine)
             is PaidReservationCancelledResult.Success -> {
                 handleEvents(result.events)
-                CancelReservationResult.Success
+                CancelPaidReservationResult.Success
             }
         }
 
     }
 
-    private fun handleEvents(events: List<PaidReservationCancelledEvents>): CancelReservationResult {
+    private fun handleEvents(events: List<PaidReservationCancelledEvents>): CancelPaidReservationResult {
         TODO("Not yet implemented")
     }
 
