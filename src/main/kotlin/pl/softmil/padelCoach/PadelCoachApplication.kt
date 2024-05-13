@@ -7,5 +7,5 @@ import org.springframework.boot.runApplication
 class PadelCoachApplication
 
 fun main(args: Array<String>) {
-	runApplication<PadelCoachApplication>(*args)
+    runApplication<PadelCoachApplication>(*args)
 }

@@ -32,7 +32,8 @@ data class Reservation(
                 paidAt = paidAt,
                 reservationId = id,
                 //do we get it from PayPal?
-                paid = this.cost
+                paid = this.cost,
+                status = PaidReservationStatus.PAID
             )
         )
     }
@@ -47,9 +48,21 @@ data class PaidReservation(
     val id: PaidReservationId,
     val reservationId: ReservationId,
     val user: User,
-    val transactionId: String,
+    val transactionId: String? = null,
     val sessionId: SessionId,
     val createdAt: ZonedDateTime,
     val paidAt: ZonedDateTime,
     val paid: FastMoney,
-)
+    val status: PaidReservationStatus,
+    val cancelledAt: ZonedDateTime? = null
+) {
+    fun cancel(now: ZonedDateTime): PaidReservation {
+        return this.copy(status = PaidReservationStatus.USER_CANCELLED, cancelledAt = now)
+    }
+}
+
+
+enum class PaidReservationStatus {
+    PAID,
+    USER_CANCELLED
+}

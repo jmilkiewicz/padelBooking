@@ -2,7 +2,6 @@ package pl.softmil.padelCoach.useCase
 
 import pl.softmil.padelCoach.core.ReservationId
 import pl.softmil.padelCoach.core.ReservationPaidEvents
-import pl.softmil.padelCoach.core.ReservationToBeRepaid
 import pl.softmil.padelCoach.core.Session
 import pl.softmil.padelCoach.core.SessionOverflow
 import pl.softmil.padelCoach.core.Success
@@ -41,7 +40,7 @@ class ReservationPaymentCompleted(
 
     }
 
-    private fun returnPayment(event: ReservationToBeRepaid) {
+    private fun returnPayment(event: ReservationPaidEvents.ReservationToBeRepaid) {
         handleEvents(listOf(event))
 
         //initiate returnPayment for user:
