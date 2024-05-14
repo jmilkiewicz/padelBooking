@@ -14,7 +14,7 @@ sealed class PaymentCompletedResult
 data class PaymentCompletedSuccess(val session: Session) : PaymentCompletedResult()
 
 //jakie parametry
-object PaymentCompletedFailure : PaymentCompletedResult()
+data object PaymentCompletedFailure : PaymentCompletedResult()
 
 class ReservationPaymentCompleted(
     private val reservationRepository: ResevationRepository, val sessionRepository: SessionRepository
@@ -24,9 +24,7 @@ class ReservationPaymentCompleted(
         val reservation = reservationRepository.getReservationById(reservationId)
         val session = sessionRepository.getSessionById(reservation.sessionId)
 
-        val reservationPaidResult = session.reservationPaid(reservation, now)
-
-        return when (reservationPaidResult) {
+        return when (val reservationPaidResult = session.reservationPaid(reservation, now)) {
             is Success -> {
                 handleEvents(reservationPaidResult.events)
                 PaymentCompletedSuccess(session)

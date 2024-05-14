@@ -9,8 +9,8 @@ sealed class SessionReservationResult
 
 class SessionInvalid(val reason: String) : SessionReservationResult()
 class InvalidLevel(val levelRequired: Int) : SessionReservationResult()
-object AlreadyRequested : SessionReservationResult()
-object SessionFull : SessionReservationResult()
+data object AlreadyRequested : SessionReservationResult()
+data object SessionFull : SessionReservationResult()
 
 
 class TemporaryFull(val till: ZonedDateTime) : SessionReservationResult()
@@ -49,7 +49,7 @@ sealed interface PaidReservationCancelledEvents {
 
 
 sealed interface PaidReservationCancelledResult {
-    object Missing : PaidReservationCancelledResult
+    data object Missing : PaidReservationCancelledResult
     data class Success(val events: List<PaidReservationCancelledEvents>) : PaidReservationCancelledResult
     data class TooLate(val deadLine: ZonedDateTime) : PaidReservationCancelledResult
 }
@@ -61,13 +61,13 @@ sealed interface PendingReservationCancelledEvent {
 
 
 sealed interface PendingReservationCancelledResult {
-    object Missing : PendingReservationCancelledResult
+    data object Missing : PendingReservationCancelledResult
     data class Success(val event: PendingReservationCancelledEvent) : PendingReservationCancelledResult
 }
 
 sealed class PaymentInitialisationResult {
     class PendingReservation(val reservation: Reservation) : PaymentInitialisationResult()
-    object Missing : PaymentInitialisationResult()
+    data object Missing : PaymentInitialisationResult()
 }
 
 

@@ -13,8 +13,8 @@ import java.time.ZonedDateTime
 
 
 sealed interface CancelPendingReservationResult {
-    object Success : CancelPendingReservationResult
-    object Missing : CancelPendingReservationResult
+    data object Success : CancelPendingReservationResult
+    data object Missing : CancelPendingReservationResult
     data class InvalidStatus(val status: ReservationStatus) : CancelPendingReservationResult
 }
 
@@ -25,8 +25,7 @@ class CancelPendingReservation(
         val user = getUserById(userId)
         val session = getSessionById(sessionId)
 
-        val result = session.cancelPendingReservation(user, now)
-        return when (result) {
+        return when (val result = session.cancelPendingReservation(user, now)) {
             is PendingReservationCancelledResult.Missing -> CancelPendingReservationResult.Missing
             is PendingReservationCancelledResult.Success -> {
                 handleEvent(result.event)

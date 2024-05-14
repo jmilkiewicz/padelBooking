@@ -12,8 +12,8 @@ import java.time.ZonedDateTime
 
 
 sealed interface CancelPaidReservationResult {
-    object Success : CancelPaidReservationResult
-    object Invalid : CancelPaidReservationResult
+    data object Success : CancelPaidReservationResult
+    data object Invalid : CancelPaidReservationResult
     data class TooLate(val deadline: ZonedDateTime) : CancelPaidReservationResult
 }
 
@@ -24,8 +24,7 @@ class CancelPaidReservation(
         val user = getUserById(userId)
         val session = getSessionById(sessionId)
 
-        val result = session.cancelPaidReservation(user, now)
-        return when (result) {
+        return when (val result = session.cancelPaidReservation(user, now)) {
             is PaidReservationCancelledResult.Missing -> CancelPaidReservationResult.Invalid
             is PaidReservationCancelledResult.TooLate -> CancelPaidReservationResult.TooLate(result.deadLine)
             is PaidReservationCancelledResult.Success -> {

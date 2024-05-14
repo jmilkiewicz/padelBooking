@@ -34,8 +34,7 @@ class CreateReservation(
         val user = getUserById(userId)
         val session = getSessionById(sessionId)
 
-        val result = session.createReservation(user, now)
-        return when (result) {
+        return when (val result = session.createReservation(user, now)) {
             is ReservationCreated -> {
                 saveReservation(result.reservation)
                 Success(reservation = result.reservation)

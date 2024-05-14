@@ -83,7 +83,7 @@ class Reservations(
         }
     }
 
-    fun getNumberOfPaidReservations(): Int = paidReservations.filter { it.status == PaidReservationStatus.PAID }.count()
+    fun getNumberOfPaidReservations(): Int = paidReservations.count { it.status == PaidReservationStatus.PAID }
 
     fun cancelPaidFor(user: User, now: ZonedDateTime): Pair<Reservation, PaidReservation>? {
         return paidReservations.firstOrNull { it.user.id == user.id && it.status == PaidReservationStatus.PAID }
@@ -96,7 +96,7 @@ class Reservations(
             }
     }
 
-    fun getFreshestPendingReservationFor(user: User): Reservation? {
+    private fun getFreshestPendingReservationFor(user: User): Reservation? {
         return pendingReservations.filter { it.user.id == user.id }.maxByOrNull { it.createdAt }
     }
 
