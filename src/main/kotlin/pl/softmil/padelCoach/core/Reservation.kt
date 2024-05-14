@@ -7,7 +7,7 @@ enum class ReservationStatus {
     CREATED,
     USER_CANCELLED,
     PAID,
-    TIMED_OUT,
+    EXPIRED,
     OVERFLOW,
     PAID_CANCELLED
 }

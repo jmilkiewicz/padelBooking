@@ -94,8 +94,7 @@ class Reservations(
     }
 
     fun cancelPendingFor(user: User): Reservation? {
-        return pendingReservations.find { it.user.id == user.id && it.status == ReservationStatus.CREATED }
-            ?.copy(status = ReservationStatus.USER_CANCELLED)
+        return pendingReservations.find { it.user.id == user.id }
     }
 
     fun getPendingReservationFor(user: User): Reservation? {
