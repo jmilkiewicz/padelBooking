@@ -2,6 +2,9 @@ package pl.softmil.padelCoach.useCase
 
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
+import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.`is`
+import org.hamcrest.Matchers.iterableWithSize
 import org.junit.jupiter.api.Test
 import pl.softmil.padelCoach.core.ReservationStatus
 import pl.softmil.padelCoach.ports.InMemoryDB
@@ -18,10 +21,10 @@ class CreateReservationTest {
 
         assertThat(result, Matchers.instanceOf(CreateReservationResult.Success::class.java))
         val success = result as CreateReservationResult.Success
-        assertThat(success.reservation.createdAt, Matchers.`is`(now))
-        assertThat(success.reservation.status, Matchers.`is`(ReservationStatus.CREATED))
+        assertThat(success.reservation.createdAt, `is`(now))
+        assertThat(success.reservation.status, `is`(ReservationStatus.CREATED))
 
-        assertThat(fakeDb.reservations, Matchers.contains(success.reservation))
+        assertThat(fakeDb.reservations, contains(success.reservation))
     }
 
     @Test
@@ -31,9 +34,9 @@ class CreateReservationTest {
 
         val result = sut.create(fakeDb.userOne.id, fakeDb.sessionId, now)
 
-        assertThat(result, Matchers.`is`(CreateReservationResult.Failure(Reason.AlreadySignedUp)))
+        assertThat(result, `is`(CreateReservationResult.Failure(Reason.AlreadySignedUp)))
 
-        assertThat(fakeDb.reservations, Matchers.iterableWithSize(1))
+        assertThat(fakeDb.reservations, iterableWithSize(1))
     }
 
 
@@ -45,9 +48,9 @@ class CreateReservationTest {
 
         val result = sut.create(fakeDb.userThree.id, fakeDb.sessionId, now)
 
-        assertThat(result, Matchers.`is`(CreateReservationResult.OtherPaymentsInProgress(now.plus(fakeDb.duration))))
+        assertThat(result, `is`(CreateReservationResult.OtherPaymentsInProgress(now.plus(fakeDb.duration))))
 
-        assertThat(fakeDb.reservations, Matchers.iterableWithSize(2))
+        assertThat(fakeDb.reservations, iterableWithSize(2))
     }
 
     @Test
@@ -57,9 +60,9 @@ class CreateReservationTest {
 
         val result = sut.create(fakeDb.userFour.id, fakeDb.sessionId, now)
 
-        assertThat(result, Matchers.`is`(CreateReservationResult.Failure(Reason.InvalidLevel)))
+        assertThat(result, `is`(CreateReservationResult.Failure(Reason.InvalidLevel)))
 
-        assertThat(fakeDb.reservations, Matchers.iterableWithSize(1))
+        assertThat(fakeDb.reservations, iterableWithSize(1))
     }
 
     //TODO reservation FULL , sessionInvalid
