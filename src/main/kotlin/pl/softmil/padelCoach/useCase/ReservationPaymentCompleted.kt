@@ -1,13 +1,12 @@
 package pl.softmil.padelCoach.useCase
 
-import pl.softmil.padelCoach.core.PaidReservation
-import pl.softmil.padelCoach.core.Reservation
 import pl.softmil.padelCoach.core.ReservationId
 import pl.softmil.padelCoach.core.ReservationPaidEvents
 import pl.softmil.padelCoach.core.ReservationPaidResult
 import pl.softmil.padelCoach.core.Session
 import pl.softmil.padelCoach.gateway.ResevationRepository
 import pl.softmil.padelCoach.gateway.SessionRepository
+import pl.softmil.padelCoach.gateway.ToPayBackRepository
 import pl.softmil.padelCoach.useCase.PaymentCompletedResult.PaymentCompletedFailure
 import pl.softmil.padelCoach.useCase.PaymentCompletedResult.PaymentCompletedSuccess
 import pl.softmil.padelCoach.useCase.PaymentCompletedResult.SessionCancelled
@@ -22,7 +21,8 @@ sealed class PaymentCompletedResult {
 }
 
 class ReservationPaymentCompleted(
-    private val reservationRepository: ResevationRepository, val sessionRepository: SessionRepository
+    private val reservationRepository: ResevationRepository, val sessionRepository: SessionRepository,
+    private val toPayBackRepository: ToPayBackRepository
 ) {
 
     fun paymentCompleted(reservationId: ReservationId, now: ZonedDateTime): PaymentCompletedResult {
@@ -31,15 +31,14 @@ class ReservationPaymentCompleted(
 
         return when (val reservationPaidResult = session.reservationPaid(reservation, now)) {
             is ReservationPaidResult.SessionCancelled -> {
-                handleSessionCancelled(
-                    reservationPaidResult.cancelledPaidReservation,
-                    reservationPaidResult.cancelledPendingReservation
+                handleReservationToBeRepaid(
+                    reservationPaidResult.event
                 )
                 SessionCancelled(session)
             }
 
             is ReservationPaidResult.SessionOverflow -> {
-                handleSessionOverflow(reservationPaidResult.event)
+                handleReservationToBeRepaid(reservationPaidResult.event)
                 PaymentCompletedFailure
             }
 
@@ -50,19 +49,14 @@ class ReservationPaymentCompleted(
         }
     }
 
-    private fun handleSessionCancelled(
-        cancelledPaidReservation: PaidReservation,
-        cancelledPendingReservation: Reservation
-    ) {
-        TODO("Not yet implemented")
+    private fun handleReservationToBeRepaid(event: ReservationPaidEvents.ReservationToBeRepaid) {
+        sessionRepository.persist(listOf(event))
+        toPayBackRepository.payBack(event.paidReservation)
     }
 
-    private fun handleSessionOverflow(event: ReservationPaidEvents.ReservationToBeRepaid) {
-        TODO("Not yet implemented")
-    }
 
     private fun handleEvents(events: List<ReservationPaidEvents>) {
-        TODO("Not yet implemented")
+        sessionRepository.persist(events)
     }
 
 }

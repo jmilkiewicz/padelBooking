@@ -27,18 +27,16 @@ sealed class ReservationPaidResult {
     ) : ReservationPaidResult()
 
     data class SessionCancelled(
-        val cancelledPendingReservation: Reservation,
-        val cancelledPaidReservation: PaidReservation
+        val event: ReservationPaidEvents.ReservationToBeRepaid,
     ) : ReservationPaidResult()
 }
 
 
 sealed interface ReservationPaidEvents {
-    data class ReservationPaid(val p: Pair<Reservation, PaidReservation>) :
+    data class ReservationPaid(val reservation: Reservation, val paidReservation: PaidReservation) :
         ReservationPaidEvents
 
-    data class SessionStatusUpdated(val sessionId: SessionId, val newStatus: SessionStatus) :
-        ReservationPaidEvents
+    data class SessionStatusUpdated(val sessionId: SessionId, val newStatus: SessionStatus) : ReservationPaidEvents
 
     data class ReservationToBeRepaid(val reservation: Reservation, val paidReservation: PaidReservation) :
         ReservationPaidEvents
@@ -113,10 +111,7 @@ data class SessionData(
 ) {
 
     fun canAccept(
-        user: User,
-        sessionSize: Int,
-        now: ZonedDateTime,
-        cost: FastMoney
+        user: User, sessionSize: Int, now: ZonedDateTime, cost: FastMoney
     ): SessionReservationResult {
         if (isInThePast(now)) {
             return SessionInvalid("already took place")
@@ -170,8 +165,7 @@ data class SessionData(
             //już mamy komplet a nowa opłacona rezerwacja przyszła!
 
             val (reservationToUpate, paidReservation) = reservations.reservationsForSessionOverflow(
-                reservation.id,
-                now
+                reservation.id, now
             )
             return ReservationPaidResult.SessionOverflow(
                 ReservationPaidEvents.ReservationToBeRepaid(reservationToUpate, paidReservation)
@@ -180,10 +174,14 @@ data class SessionData(
 
         if (sessionStatus == SessionStatus.Cancelled) {
             val (reservationToUpdate, paidReservation) = reservations.reservationsForSessionCancelled(
-                reservation.id,
-                now
+                reservation.id, now
             )
-            return ReservationPaidResult.SessionCancelled(reservationToUpdate, paidReservation)
+            return ReservationPaidResult.SessionCancelled(
+                ReservationPaidEvents.ReservationToBeRepaid(
+                    reservationToUpdate,
+                    paidReservation
+                )
+            )
         }
         return success(reservation, now, sessionSize)
     }
@@ -213,12 +211,10 @@ data class SessionData(
     }
 
     private fun success(
-        reservation: Reservation,
-        now: ZonedDateTime,
-        sessionSize: Int
+        reservation: Reservation, now: ZonedDateTime, sessionSize: Int
     ): ReservationPaidResult.Success {
-        val reservationsUpdated = reservations.reservationsPaid(reservation.id, now)
-        val result = listOf(ReservationPaidEvents.ReservationPaid(reservationsUpdated))
+        val (reservationToUpdate, paidReservation) = reservations.reservationsPaid(reservation.id, now)
+        val result = listOf(ReservationPaidEvents.ReservationPaid(reservationToUpdate, paidReservation))
 
         val events = if (reservations.getNumberOfPaidReservations() + 1 == sessionSize) {
             result + listOf(ReservationPaidEvents.SessionStatusUpdated(id, SessionStatus.Ready))
@@ -263,8 +259,7 @@ data class SessionData(
         if (sessionStatus == SessionStatus.Cancelled) {
             return SessionCancellationResult.SessionAlreadyCancelled
         }
-        val (reservationsToUpdate, paidReservationsToUpdate) =
-            reservations.cancelAllEligibleReservations(now)
+        val (reservationsToUpdate, paidReservationsToUpdate) = reservations.cancelAllEligibleReservations(now)
 
         val events = listOf(
             SessionCancelledEvents.PendingReservationsToCancel(reservationsToUpdate),
@@ -327,8 +322,7 @@ class TwoOnOneSession(val sessionData: SessionData, val cost: FastMoney) : Sessi
     }
 }
 
-class FourToOneSession(val sessionData: SessionData, val cost: FastMoney) :
-    Session {
+class FourToOneSession(val sessionData: SessionData, val cost: FastMoney) : Session {
     override fun createReservation(user: User, now: ZonedDateTime): SessionReservationResult {
         return sessionData.canAccept(user, 4, now, cost)
     }

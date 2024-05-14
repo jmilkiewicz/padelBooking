@@ -90,7 +90,7 @@ class Reservations(
     fun reservationsForSessionCancelled(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
         val (reservation, paidReservation) = reservationsPaid(id, now)
         return Pair(
-            reservation.paidReservationCancelled(),
+            reservation.sessionCancelled(),
             paidReservation.sessionCancelled(now)
         )
     }

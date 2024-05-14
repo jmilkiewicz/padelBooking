@@ -5,6 +5,7 @@ import pl.softmil.padelCoach.core.Coach
 import pl.softmil.padelCoach.core.PaidReservation
 import pl.softmil.padelCoach.core.Reservation
 import pl.softmil.padelCoach.core.ReservationId
+import pl.softmil.padelCoach.core.ReservationPaidEvents
 import pl.softmil.padelCoach.core.Reservations
 import pl.softmil.padelCoach.core.Session
 import pl.softmil.padelCoach.core.SessionData
@@ -15,13 +16,14 @@ import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.ResevationRepository
 import pl.softmil.padelCoach.gateway.SessionRepository
+import pl.softmil.padelCoach.gateway.ToPayBackRepository
 import pl.softmil.padelCoach.gateway.UserRepository
 import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.UUID
 
 
-class InMemoryDB : SessionRepository, ResevationRepository, UserRepository {
+class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPayBackRepository {
     val userOne = User(UserId(UUID.randomUUID()), "user1", "surname1", "email@user1.one", 3)
     val userTwo = User(UserId(UUID.randomUUID()), "user2", "surname2", "email@user2.one", 3)
     val userThree = User(UserId(UUID.randomUUID()), "user3", "surname3", "email@user3.one", 3)
@@ -46,7 +48,8 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository {
             coach = coach,
             sessionStatus = SessionStatus.Open
         )
-    var session = TwoOnOneSession(sessionData, FastMoney.of(20, "EUR"))
+
+    val toPayBackReservations = mutableListOf<PaidReservation>()
 
 
     override fun getReservationById(reservationId: ReservationId): Reservation {
@@ -54,14 +57,46 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository {
     }
 
     override fun getSessionById(sessionId: SessionId): Session {
-        return session
+        return TwoOnOneSession(sessionData, FastMoney.of(20, "EUR"))
     }
 
     override fun saveReservation(reservation: Reservation) {
         reservations.add(reservation)
     }
 
+    override fun persist(events: List<ReservationPaidEvents>) {
+        events.forEach { event ->
+            when (event) {
+                is ReservationPaidEvents.ReservationPaid -> {
+                    reservations.removeIf { it.id == event.reservation.id }
+                    reservations.add(event.reservation)
+
+                    paidReservations.add(event.paidReservation)
+                }
+
+                is ReservationPaidEvents.ReservationToBeRepaid -> {
+                    reservations.removeIf { it.id == event.reservation.id }
+                    reservations.add(event.reservation)
+
+                    paidReservations.add(event.paidReservation)
+                }
+
+                is ReservationPaidEvents.SessionStatusUpdated -> {
+                    sessionData = sessionData.copy(sessionStatus = event.newStatus)
+                }
+            }
+        }
+    }
+
     override fun getUserById(userId: UserId): User = users.get(userId)!!
+
+    fun addReservation(res: Reservation) {
+        reservations.add(res)
+    }
+
+    override fun payBack(reservation: PaidReservation) {
+        toPayBackReservations.add(reservation)
+    }
 
 
 }
