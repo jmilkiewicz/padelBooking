@@ -66,7 +66,7 @@ class Reservations(
 
     private fun getPendingReservation(id: ReservationId): Reservation = pendingReservations.first { it.id == id }
 
-    fun paidReservationFor(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
+    fun paidReservationsFor(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
         return getPendingReservation(id).let {
             Pair(
                 it.copy(status = ReservationStatus.PAID),
