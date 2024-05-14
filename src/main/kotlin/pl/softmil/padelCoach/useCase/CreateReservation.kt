@@ -52,7 +52,7 @@ class CreateReservation(
     }
 
     private fun saveReservation(reservation: Reservation) {
-        TODO("Not yet implemented")
+        sessionRepository.saveReservation(reservation)
     }
 
     private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)
