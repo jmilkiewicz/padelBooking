@@ -3,6 +3,7 @@ package pl.softmil.padelCoach.ports
 import org.javamoney.moneta.FastMoney
 import pl.softmil.padelCoach.core.Coach
 import pl.softmil.padelCoach.core.PaidReservation
+import pl.softmil.padelCoach.core.PaidReservationCancelledEvents
 import pl.softmil.padelCoach.core.Reservation
 import pl.softmil.padelCoach.core.ReservationId
 import pl.softmil.padelCoach.core.ReservationPaidEvents
@@ -46,7 +47,7 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
                 pendingReservationTTL = duration
             ),
             coach = coach,
-            sessionStatus = SessionStatus.Open
+            sessionStatus = SessionStatus.Open,
         )
 
     val toPayBackReservations = mutableListOf<PaidReservation>()
@@ -64,7 +65,7 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
         reservations.add(reservation)
     }
 
-    override fun persist(events: List<ReservationPaidEvents>) {
+    override fun persistReservationPaidEvents(events: List<ReservationPaidEvents>) {
         events.forEach { event ->
             when (event) {
                 is ReservationPaidEvents.ReservationPaid -> {
@@ -82,6 +83,26 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
                 }
 
                 is ReservationPaidEvents.SessionStatusUpdated -> {
+                    sessionData = sessionData.copy(sessionStatus = event.newStatus)
+                }
+            }
+        }
+    }
+
+    override fun persistPaidReservationCancelledEvents(events: List<PaidReservationCancelledEvents>) {
+        events.forEach { event ->
+            when (event) {
+                is PaidReservationCancelledEvents.Cancelled -> {
+                    paidReservations.removeIf { it.id == event.paidReservation.id }
+                    paidReservations.add(event.paidReservation)
+                }
+
+                is PaidReservationCancelledEvents.PendingRegistrationCancelled -> {
+                    reservations.removeIf { it.id == event.reservation.id }
+                    reservations.add(event.reservation)
+                }
+
+                is PaidReservationCancelledEvents.SessionStatusUpdated -> {
                     sessionData = sessionData.copy(sessionStatus = event.newStatus)
                 }
             }

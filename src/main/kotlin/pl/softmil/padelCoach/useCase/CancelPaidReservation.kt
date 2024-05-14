@@ -7,6 +7,7 @@ import pl.softmil.padelCoach.core.SessionId
 import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.SessionRepository
+import pl.softmil.padelCoach.gateway.ToPayBackRepository
 import pl.softmil.padelCoach.gateway.UserRepository
 import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.Invalid
 import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.SessionCancelled
@@ -23,7 +24,8 @@ sealed interface CancelPaidReservationResult {
 }
 
 class CancelPaidReservation(
-    private val sessionRepository: SessionRepository, private val userRepository: UserRepository
+    private val sessionRepository: SessionRepository, private val userRepository: UserRepository,
+    private val toPayBackRepository: ToPayBackRepository
 ) {
     fun cancel(userId: UserId, sessionId: SessionId, now: ZonedDateTime): CancelPaidReservationResult {
         val user = getUserById(userId)
@@ -42,8 +44,13 @@ class CancelPaidReservation(
 
     }
 
-    private fun handleEvents(events: List<PaidReservationCancelledEvents>): CancelPaidReservationResult {
-        TODO("Not yet implemented")
+    private fun handleEvents(events: List<PaidReservationCancelledEvents>) {
+        sessionRepository.persistPaidReservationCancelledEvents(events)
+        events.firstOrNull { it is PaidReservationCancelledEvents.Cancelled }?.apply {
+            val paidReservation =
+                (this as PaidReservationCancelledEvents.Cancelled).paidReservation
+            toPayBackRepository.payBack(paidReservation)
+        }
     }
 
     private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)

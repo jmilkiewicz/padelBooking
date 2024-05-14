@@ -1,6 +1,7 @@
 package pl.softmil.padelCoach.core
 
 import org.javamoney.moneta.FastMoney
+import java.time.Duration
 import java.time.ZonedDateTime
 import java.util.UUID
 
@@ -107,7 +108,8 @@ data class SessionData(
     val scheduledAt: ZonedDateTime,
     val reservations: Reservations,
     val sessionStatus: SessionStatus,
-    val coach: Coach
+    val coach: Coach,
+    val cancelBeforeScheduled: Duration = Duration.ofHours(24)
 ) {
 
     fun canAccept(
@@ -224,7 +226,7 @@ data class SessionData(
     }
 
     private fun getCancellationDeadline(): ZonedDateTime {
-        return scheduledAt.minusDays(1)
+        return scheduledAt.minus(cancelBeforeScheduled)
     }
 
     private fun isInThePast(now: ZonedDateTime): Boolean = scheduledAt.isBefore(now)

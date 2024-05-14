@@ -50,13 +50,13 @@ class ReservationPaymentCompleted(
     }
 
     private fun handleReservationToBeRepaid(event: ReservationPaidEvents.ReservationToBeRepaid) {
-        sessionRepository.persist(listOf(event))
+        sessionRepository.persistReservationPaidEvents(listOf(event))
         toPayBackRepository.payBack(event.paidReservation)
     }
 
 
     private fun handleEvents(events: List<ReservationPaidEvents>) {
-        sessionRepository.persist(events)
+        sessionRepository.persistReservationPaidEvents(events)
     }
 
 }
