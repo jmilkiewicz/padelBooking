@@ -69,6 +69,7 @@ sealed interface PendingReservationCancelledResult {
 sealed class PaymentInitialisationResult {
     class PendingReservation(val reservation: Reservation) : PaymentInitialisationResult()
     data object Missing : PaymentInitialisationResult()
+    data object SessionUnavailable : PaymentInitialisationResult()
 }
 
 
@@ -218,7 +219,9 @@ data class SessionData(
     }
 
     fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
-        //TODO co bedzie jak sesja jest cancel prze coach
+        if (sessionStatus != SessionStatus.Open) {
+            return PaymentInitialisationResult.SessionUnavailable
+        }
         val pendingReservation = reservations.findCanBePaidReservationFor(user, now)
         return if (pendingReservation == null) {
             PaymentInitialisationResult.Missing

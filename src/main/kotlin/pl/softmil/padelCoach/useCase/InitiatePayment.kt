@@ -8,12 +8,16 @@ import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.SessionRepository
 import pl.softmil.padelCoach.gateway.UserRepository
+import pl.softmil.padelCoach.useCase.InitiatePaymentResult.Invalid
+import pl.softmil.padelCoach.useCase.InitiatePaymentResult.SessionUnavailable
+import pl.softmil.padelCoach.useCase.InitiatePaymentResult.Success
 import java.time.ZonedDateTime
 
 
 sealed interface InitiatePaymentResult {
     data class Success(val reservation: Reservation) : InitiatePaymentResult
     data object Invalid : InitiatePaymentResult
+    data object SessionUnavailable : InitiatePaymentResult
 }
 
 class InitiatePayment(
@@ -24,8 +28,9 @@ class InitiatePayment(
         val session = getSessionById(sessionId)
 
         return when (val result = session.initiatePayment(user, now)) {
-            is PaymentInitialisationResult.Missing -> InitiatePaymentResult.Invalid
-            is PaymentInitialisationResult.PendingReservation -> InitiatePaymentResult.Success(result.reservation)
+            is PaymentInitialisationResult.Missing -> Invalid
+            is PaymentInitialisationResult.SessionUnavailable -> SessionUnavailable
+            is PaymentInitialisationResult.PendingReservation -> Success(result.reservation)
         }
     }
 
