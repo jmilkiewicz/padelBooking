@@ -146,7 +146,7 @@ data class SessionData(
         }
 
         if (sessionStatus == SessionStatus.Ready) {
-            //już mamy komplet
+            //już mamy komplet a nowa opłacona rezerwacja przyszła!
             //TODO czy powinienem także zapisać PaidReservation z jakimś specjalnym stanem?
             return SessionOverflow(ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow()))
         }
@@ -185,7 +185,7 @@ data class SessionData(
         now: ZonedDateTime,
         sessionSize: Int
     ): Success {
-        val reservationsUpdated = reservations.paidReservationFor(reservation.id, now)
+        val reservationsUpdated = reservations.paidReservationsFor(reservation.id, now)
         val result = listOf(ReservationPaidEvents.ReservationPaid(reservationsUpdated))
 
         val events = if (reservations.getNumberOfPaidReservations() + 1 == sessionSize) {
