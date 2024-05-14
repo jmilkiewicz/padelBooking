@@ -25,6 +25,11 @@ sealed class ReservationPaidResult {
     data class SessionOverflow(
         val event: ReservationPaidEvents.ReservationToBeRepaid,
     ) : ReservationPaidResult()
+
+    data class SessionCancelled(
+        val cancelledPendingReservation: Reservation,
+        val cancelledPaidReservation: PaidReservation
+    ) : ReservationPaidResult()
 }
 
 
@@ -164,9 +169,17 @@ data class SessionData(
         if (sessionStatus == SessionStatus.Ready) {
             //już mamy komplet a nowa opłacona rezerwacja przyszła!
             //TODO czy powinienem także zapisać PaidReservation z jakimś specjalnym stanem?
-            return ReservationPaidResult.SessionOverflow(ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow()))
+            return ReservationPaidResult.SessionOverflow(
+                ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow())
+            )
         }
-        //TODO Co bedzie jak sessionStatus == Cancelled - bo coach zcancelował sesje...
+
+        if (sessionStatus == SessionStatus.Cancelled) {
+            val (reservationToUpdate, paidReservation) = reservations.paidReservationsFor(reservation.id, now)
+            val reservationCancelled = reservationToUpdate.sessionCancelled()
+            val paidReservationCancelled = paidReservation.sessionCancelled(now)
+            return ReservationPaidResult.SessionCancelled(reservationCancelled, paidReservationCancelled)
+        }
         return success(reservation, now, sessionSize)
     }
 
