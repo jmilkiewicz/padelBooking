@@ -40,7 +40,7 @@ sealed interface ReservationPaidEvents {
     data class SessionStatusUpdated(val sessionId: SessionId, val newStatus: SessionStatus) :
         ReservationPaidEvents
 
-    data class ReservationToBeRepaid(val reservation: Reservation) :
+    data class ReservationToBeRepaid(val reservation: Reservation, val paidReservation: PaidReservation) :
         ReservationPaidEvents
 }
 
@@ -168,17 +168,22 @@ data class SessionData(
 
         if (sessionStatus == SessionStatus.Ready) {
             //już mamy komplet a nowa opłacona rezerwacja przyszła!
-            //TODO czy powinienem także zapisać PaidReservation z jakimś specjalnym stanem?
+
+            val (reservationToUpate, paidReservation) = reservations.reservationsForSessionOverflow(
+                reservation.id,
+                now
+            )
             return ReservationPaidResult.SessionOverflow(
-                ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow())
+                ReservationPaidEvents.ReservationToBeRepaid(reservationToUpate, paidReservation)
             )
         }
 
         if (sessionStatus == SessionStatus.Cancelled) {
-            val (reservationToUpdate, paidReservation) = reservations.paidReservationsFor(reservation.id, now)
-            val reservationCancelled = reservationToUpdate.sessionCancelled()
-            val paidReservationCancelled = paidReservation.sessionCancelled(now)
-            return ReservationPaidResult.SessionCancelled(reservationCancelled, paidReservationCancelled)
+            val (reservationToUpdate, paidReservation) = reservations.reservationsForSessionCancelled(
+                reservation.id,
+                now
+            )
+            return ReservationPaidResult.SessionCancelled(reservationToUpdate, paidReservation)
         }
         return success(reservation, now, sessionSize)
     }
@@ -212,7 +217,7 @@ data class SessionData(
         now: ZonedDateTime,
         sessionSize: Int
     ): ReservationPaidResult.Success {
-        val reservationsUpdated = reservations.paidReservationsFor(reservation.id, now)
+        val reservationsUpdated = reservations.reservationsPaid(reservation.id, now)
         val result = listOf(ReservationPaidEvents.ReservationPaid(reservationsUpdated))
 
         val events = if (reservations.getNumberOfPaidReservations() + 1 == sessionSize) {

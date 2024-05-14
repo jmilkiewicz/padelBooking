@@ -21,7 +21,7 @@ data class Reservation(
     val cost: FastMoney,
     val status: ReservationStatus
 ) {
-    fun asOverflow(): Reservation {
+    fun paidReservationOverflow(): Reservation {
         return this.copy(status = ReservationStatus.OVERFLOW)
     }
 
@@ -67,11 +67,16 @@ data class PaidReservation(
     fun sessionCancelled(now: ZonedDateTime): PaidReservation {
         return this.copy(status = PaidReservationStatus.SESSION_CANCELLED, cancelledAt = now)
     }
+
+    fun sessionOverflow(now: ZonedDateTime): PaidReservation {
+        return this.copy(status = PaidReservationStatus.SESSION_OVERFLOW, cancelledAt = now)
+    }
 }
 
 
 enum class PaidReservationStatus {
     PAID,
     USER_CANCELLED,
-    SESSION_CANCELLED
+    SESSION_CANCELLED,
+    SESSION_OVERFLOW
 }

@@ -66,7 +66,7 @@ class Reservations(
 
     private fun getPendingReservation(id: ReservationId): Reservation = pendingReservations.first { it.id == id }
 
-    fun paidReservationsFor(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
+    fun reservationsPaid(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
         return getPendingReservation(id).let {
             Pair(
                 it.copy(status = ReservationStatus.PAID),
@@ -86,6 +86,23 @@ class Reservations(
 
         }
     }
+
+    fun reservationsForSessionCancelled(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
+        val (reservation, paidReservation) = reservationsPaid(id, now)
+        return Pair(
+            reservation.paidReservationCancelled(),
+            paidReservation.sessionCancelled(now)
+        )
+    }
+
+    fun reservationsForSessionOverflow(id: ReservationId, now: ZonedDateTime): Pair<Reservation, PaidReservation> {
+        val (reservation, paidReservation) = reservationsPaid(id, now)
+        return Pair(
+            reservation.paidReservationOverflow(),
+            paidReservation.sessionOverflow(now)
+        )
+    }
+
 
     fun getNumberOfPaidReservations(): Int = paidReservations.count { it.status == PaidReservationStatus.PAID }
 
