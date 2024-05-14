@@ -13,19 +13,21 @@ import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.SessionRepository
 import pl.softmil.padelCoach.gateway.UserRepository
+import pl.softmil.padelCoach.useCase.CreateReservationResult.Failure
+import pl.softmil.padelCoach.useCase.CreateReservationResult.OtherPaymentsInProgress
+import pl.softmil.padelCoach.useCase.CreateReservationResult.Success
 import java.time.ZonedDateTime
 
 
-sealed interface CreateReservationResult
+sealed interface CreateReservationResult {
+    data class Success(val reservation: Reservation) : CreateReservationResult
+    data class Failure(val reason: Reason) : CreateReservationResult
+    data class OtherPaymentsInProgress(val checkAfter: ZonedDateTime) : CreateReservationResult
+}
 
 enum class Reason {
     InvalidLevel, Invalid, Full, AlreadySignedUp
 }
-
-data class Success(val reservation: Reservation) : CreateReservationResult
-data class Failure(val reason: Reason) : CreateReservationResult
-data class OtherPaymentsInProgress(val checkAfter: ZonedDateTime) : CreateReservationResult
-
 
 class CreateReservation(
     private val sessionRepository: SessionRepository, private val userRepository: UserRepository
