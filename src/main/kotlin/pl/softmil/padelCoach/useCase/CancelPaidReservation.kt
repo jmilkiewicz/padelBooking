@@ -24,7 +24,8 @@ sealed interface CancelPaidReservationResult {
 }
 
 class CancelPaidReservation(
-    private val sessionRepository: SessionRepository, private val userRepository: UserRepository,
+    private val sessionRepository: SessionRepository,
+    private val userRepository: UserRepository,
     private val toPayBackRepository: ToPayBackRepository
 ) {
     fun cancel(userId: UserId, sessionId: SessionId, now: ZonedDateTime): CancelPaidReservationResult {
@@ -46,11 +47,8 @@ class CancelPaidReservation(
 
     private fun handleEvents(events: List<PaidReservationCancelledEvents>) {
         sessionRepository.persistPaidReservationCancelledEvents(events)
-        events.firstOrNull { it is PaidReservationCancelledEvents.Cancelled }?.apply {
-            val paidReservation =
-                (this as PaidReservationCancelledEvents.Cancelled).paidReservation
-            toPayBackRepository.payBack(paidReservation)
-        }
+        val toPayBack = events.filterIsInstance<PaidReservationCancelledEvents.Cancelled>().map { it.paidReservation }
+        toPayBackRepository.payBack(toPayBack)
     }
 
     private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)
