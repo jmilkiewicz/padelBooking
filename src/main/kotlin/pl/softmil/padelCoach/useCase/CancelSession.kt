@@ -5,6 +5,7 @@ import pl.softmil.padelCoach.core.SessionCancellationResult
 import pl.softmil.padelCoach.core.SessionCancelledEvents
 import pl.softmil.padelCoach.core.SessionId
 import pl.softmil.padelCoach.gateway.SessionRepository
+import pl.softmil.padelCoach.gateway.ToPayBackRepository
 import pl.softmil.padelCoach.useCase.CancelSessionResult.SessionAlreadyCancelled
 import java.time.ZonedDateTime
 
@@ -15,7 +16,7 @@ sealed interface CancelSessionResult {
 }
 
 class CancelSession(
-    private val sessionRepository: SessionRepository
+    private val sessionRepository: SessionRepository, private val toPayBackRepository: ToPayBackRepository
 ) {
     fun cancel(sessionId: SessionId, now: ZonedDateTime): CancelSessionResult {
         val session = getSessionById(sessionId)
@@ -30,7 +31,10 @@ class CancelSession(
     }
 
     private fun handleEvents(events: List<SessionCancelledEvents>) {
-        //store to DB and trigger repay
+        sessionRepository.persistSessionCancelledEvents(events)
+        val toPayBack =
+            events.filterIsInstance<SessionCancelledEvents.PaidReservationsToCancel>().flatMap { it.reservations }
+        toPayBackRepository.payBack(toPayBack)
     }
 
     private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)

@@ -9,6 +9,7 @@ import pl.softmil.padelCoach.core.ReservationId
 import pl.softmil.padelCoach.core.ReservationPaidEvents
 import pl.softmil.padelCoach.core.Reservations
 import pl.softmil.padelCoach.core.Session
+import pl.softmil.padelCoach.core.SessionCancelledEvents
 import pl.softmil.padelCoach.core.SessionData
 import pl.softmil.padelCoach.core.SessionId
 import pl.softmil.padelCoach.core.SessionStatus
@@ -69,21 +70,19 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
         events.forEach { event ->
             when (event) {
                 is ReservationPaidEvents.ReservationPaid -> {
-                    reservations.removeIf { it.id == event.reservation.id }
-                    reservations.add(event.reservation)
+                    updateReservation(event.reservation)
 
                     paidReservations.add(event.paidReservation)
                 }
 
                 is ReservationPaidEvents.ReservationToBeRepaid -> {
-                    reservations.removeIf { it.id == event.reservation.id }
-                    reservations.add(event.reservation)
+                    updateReservation(event.reservation)
 
                     paidReservations.add(event.paidReservation)
                 }
 
                 is ReservationPaidEvents.SessionStatusUpdated -> {
-                    sessionData = sessionData.copy(sessionStatus = event.newStatus)
+                    updateSessionStatus(event.newStatus)
                 }
             }
         }
@@ -93,17 +92,47 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
         events.forEach { event ->
             when (event) {
                 is PaidReservationCancelledEvents.Cancelled -> {
-                    paidReservations.removeIf { it.id == event.paidReservation.id }
-                    paidReservations.add(event.paidReservation)
+                    updatePaidReservation(event.paidReservation)
                 }
 
                 is PaidReservationCancelledEvents.PendingRegistrationCancelled -> {
-                    reservations.removeIf { it.id == event.reservation.id }
-                    reservations.add(event.reservation)
+                    updateReservation(event.reservation)
                 }
 
                 is PaidReservationCancelledEvents.SessionStatusUpdated -> {
-                    sessionData = sessionData.copy(sessionStatus = event.newStatus)
+                    updateSessionStatus(event.newStatus)
+                }
+            }
+        }
+    }
+
+    private fun updateSessionStatus(sessionStatus: SessionStatus) {
+        sessionData = sessionData.copy(sessionStatus = sessionStatus)
+    }
+
+    private fun updatePaidReservation(paidReservation: PaidReservation) {
+        paidReservations.removeIf { it.id == paidReservation.id }
+        paidReservations.add(paidReservation)
+    }
+
+    private fun updateReservation(reservation: Reservation) {
+        reservations.removeIf { it.id == reservation.id }
+        reservations.add(reservation)
+    }
+
+    override fun persistSessionCancelledEvents(events: List<SessionCancelledEvents>) {
+        events.forEach { event ->
+            when (event) {
+                is SessionCancelledEvents.PaidReservationsToCancel -> {
+                    event.reservations.forEach { updatePaidReservation(it) }
+                }
+
+                is SessionCancelledEvents.PendingReservationsToCancel -> {
+                    event.reservations.forEach { updateReservation(it) }
+                }
+
+                is SessionCancelledEvents.SessionUpdateEvent -> {
+                    updateSessionStatus(event.status)
                 }
             }
         }
@@ -117,6 +146,10 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
 
     override fun payBack(reservation: PaidReservation) {
         toPayBackReservations.add(reservation)
+    }
+
+    override fun payBack(reservations: List<PaidReservation>) {
+        toPayBackReservations.addAll(reservations)
     }
 
 

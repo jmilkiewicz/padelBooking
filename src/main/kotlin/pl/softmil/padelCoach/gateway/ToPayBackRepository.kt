@@ -5,4 +5,5 @@ import pl.softmil.padelCoach.core.PaidReservation
 
 interface ToPayBackRepository {
     fun payBack(reservation: PaidReservation)
+    fun payBack(reservations: List<PaidReservation>)
 }
