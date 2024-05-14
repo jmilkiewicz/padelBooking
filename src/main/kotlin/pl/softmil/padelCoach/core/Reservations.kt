@@ -123,4 +123,18 @@ class Reservations(
         }
     }
 
+    fun cancelAllEligibleReservations(now: ZonedDateTime): Pair<List<Reservation>, List<PaidReservation>> {
+        val allPaidReservations = paidReservations.filter { it.status == PaidReservationStatus.PAID }
+        val correspondingPendingReservations = allPaidReservations.map { it.reservationId }.toSet()
+
+        val allCreatedPendingReservations = pendingReservations.filter { it.status == ReservationStatus.CREATED }
+        val matchingPendingReservations =
+            pendingReservations.filter { correspondingPendingReservations.contains(it.id) }
+
+        return Pair(
+            (allCreatedPendingReservations + matchingPendingReservations).map { it.sessionCancelled() },
+            allPaidReservations.map { it.sessionCancelled(now) }
+        )
+    }
+
 }

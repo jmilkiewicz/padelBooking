@@ -9,7 +9,8 @@ enum class ReservationStatus {
     PAID,
     EXPIRED,
     OVERFLOW,
-    PAID_CANCELLED
+    PAID_CANCELLED,
+    SESSION_CANCELLED
 }
 
 data class Reservation(
@@ -40,6 +41,10 @@ data class Reservation(
         return this.copy(status = ReservationStatus.PAID_CANCELLED)
     }
 
+    fun sessionCancelled(): Reservation {
+        return this.copy(status = ReservationStatus.SESSION_CANCELLED)
+    }
+
 
 }
 
@@ -58,10 +63,15 @@ data class PaidReservation(
     fun cancel(now: ZonedDateTime): PaidReservation {
         return this.copy(status = PaidReservationStatus.USER_CANCELLED, cancelledAt = now)
     }
+
+    fun sessionCancelled(now: ZonedDateTime): PaidReservation {
+        return this.copy(status = PaidReservationStatus.SESSION_CANCELLED, cancelledAt = now)
+    }
 }
 
 
 enum class PaidReservationStatus {
     PAID,
-    USER_CANCELLED
+    USER_CANCELLED,
+    SESSION_CANCELLED
 }
