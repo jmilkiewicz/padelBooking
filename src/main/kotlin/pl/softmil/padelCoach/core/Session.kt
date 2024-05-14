@@ -50,6 +50,7 @@ sealed interface PaidReservationCancelledEvents {
 
 sealed interface PaidReservationCancelledResult {
     data object Missing : PaidReservationCancelledResult
+    data object SessionCancelled : PaidReservationCancelledResult
     data class Success(val events: List<PaidReservationCancelledEvents>) : PaidReservationCancelledResult
     data class TooLate(val deadLine: ZonedDateTime) : PaidReservationCancelledResult
 }
@@ -157,8 +158,9 @@ data class SessionData(
     }
 
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult {
-        //TODO co będzie jak session jest cancelled bo coach zcancellował sesje?
-
+        if (sessionStatus == SessionStatus.Cancelled) {
+            return PaidReservationCancelledResult.SessionCancelled
+        }
         val deadline = getCancellationDeadline()
         if (now.isAfter(deadline)) {
             return PaidReservationCancelledResult.TooLate(deadline)

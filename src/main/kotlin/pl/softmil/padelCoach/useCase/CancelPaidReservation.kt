@@ -8,12 +8,17 @@ import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.SessionRepository
 import pl.softmil.padelCoach.gateway.UserRepository
+import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.Invalid
+import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.SessionCancelled
+import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.Success
+import pl.softmil.padelCoach.useCase.CancelPaidReservationResult.TooLate
 import java.time.ZonedDateTime
 
 
 sealed interface CancelPaidReservationResult {
     data object Success : CancelPaidReservationResult
     data object Invalid : CancelPaidReservationResult
+    data object SessionCancelled : CancelPaidReservationResult
     data class TooLate(val deadline: ZonedDateTime) : CancelPaidReservationResult
 }
 
@@ -25,12 +30,14 @@ class CancelPaidReservation(
         val session = getSessionById(sessionId)
 
         return when (val result = session.cancelPaidReservation(user, now)) {
-            is PaidReservationCancelledResult.Missing -> CancelPaidReservationResult.Invalid
-            is PaidReservationCancelledResult.TooLate -> CancelPaidReservationResult.TooLate(result.deadLine)
+            is PaidReservationCancelledResult.Missing -> Invalid
+            is PaidReservationCancelledResult.TooLate -> TooLate(result.deadLine)
+            is PaidReservationCancelledResult.SessionCancelled -> SessionCancelled
             is PaidReservationCancelledResult.Success -> {
                 handleEvents(result.events)
-                CancelPaidReservationResult.Success
+                Success
             }
+
         }
 
     }
