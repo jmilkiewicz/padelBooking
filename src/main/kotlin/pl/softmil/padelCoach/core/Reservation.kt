@@ -2,13 +2,14 @@ package pl.softmil.padelCoach.core
 
 import org.javamoney.moneta.FastMoney
 import java.time.ZonedDateTime
-import java.util.UUID
 
 enum class ReservationStatus {
     CREATED,
+    USER_CANCELLED,
     PAID,
     TIMED_OUT,
-    TERMINATED
+    OVERFLOW,
+    PAID_CANCELLED
 }
 
 data class Reservation(
@@ -20,28 +21,20 @@ data class Reservation(
     val status: ReservationStatus
 ) {
     fun wasCreatedAfter(ts: ZonedDateTime): Boolean = ts.isBefore(createdAt)
-    fun asPaid(transactionId: String, paidAt: ZonedDateTime): Pair<Reservation, PaidReservation> {
-        return Pair(
-            this.copy(status = ReservationStatus.PAID),
-            PaidReservation(
-                id = PaidReservationId(UUID.randomUUID()),
-                user = user,
-                transactionId = transactionId,
-                sessionId = sessionId,
-                createdAt = createdAt,
-                paidAt = paidAt,
-                reservationId = id,
-                //do we get it from PayPal?
-                paid = this.cost,
-                status = PaidReservationStatus.PAID
-            )
-        )
-    }
 
     fun isCreated(): Boolean = this.status == ReservationStatus.CREATED
     fun asOverflow(): Reservation {
-        return this.copy(status = ReservationStatus.TERMINATED)
+        return this.copy(status = ReservationStatus.OVERFLOW)
     }
+
+    fun cancel(): Reservation {
+        return this.copy(status = ReservationStatus.USER_CANCELLED)
+    }
+
+    fun paidReservationCancelled(): Reservation {
+        return this.copy(status = ReservationStatus.PAID_CANCELLED)
+    }
+
 }
 
 data class PaidReservation(

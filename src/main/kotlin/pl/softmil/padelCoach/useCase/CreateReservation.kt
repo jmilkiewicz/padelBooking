@@ -2,13 +2,13 @@ package pl.softmil.padelCoach.useCase
 
 import pl.softmil.padelCoach.core.AlreadyRequested
 import pl.softmil.padelCoach.core.InvalidLevel
-import pl.softmil.padelCoach.core.PendingPayments
 import pl.softmil.padelCoach.core.Reservation
 import pl.softmil.padelCoach.core.ReservationCreated
 import pl.softmil.padelCoach.core.Session
 import pl.softmil.padelCoach.core.SessionFull
 import pl.softmil.padelCoach.core.SessionId
 import pl.softmil.padelCoach.core.SessionInvalid
+import pl.softmil.padelCoach.core.TemporaryFull
 import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
 import pl.softmil.padelCoach.gateway.SessionRepository
@@ -45,7 +45,7 @@ class CreateReservation(
             is SessionFull -> Failure(Reason.Full)
             is InvalidLevel -> Failure(Reason.InvalidLevel)
             is AlreadyRequested -> Failure(Reason.AlreadySignedUp)
-            is PendingPayments -> OtherPaymentsInProgress(result.till)
+            is TemporaryFull -> OtherPaymentsInProgress(result.till)
         }
 
     }

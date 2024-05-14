@@ -2,7 +2,6 @@ package pl.softmil.padelCoach.core
 
 import org.javamoney.moneta.FastMoney
 import java.time.ZonedDateTime
-import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 
@@ -14,7 +13,7 @@ object AlreadyRequested : SessionReservationResult()
 object SessionFull : SessionReservationResult()
 
 
-class PendingPayments(val till: ZonedDateTime) : SessionReservationResult()
+class TemporaryFull(val till: ZonedDateTime) : SessionReservationResult()
 class ReservationCreated(val reservation: Reservation) : SessionReservationResult()
 
 
@@ -43,6 +42,7 @@ sealed interface ReservationPaidEvents {
 
 sealed interface PaidReservationCancelledEvents {
     data class Cancelled(val paidReservation: PaidReservation) : PaidReservationCancelledEvents
+    data class PendingRegistrationCancelled(val reservation: Reservation) : PaidReservationCancelledEvents
     data class SessionStatusUpdated(val sessionId: SessionId, val newStatus: SessionStatus) :
         PaidReservationCancelledEvents
 }
@@ -55,10 +55,28 @@ sealed interface PaidReservationCancelledResult {
 }
 
 
+sealed interface PendingReservationCancelledEvent {
+    data class Cancelled(val pendingReservation: Reservation) : PendingReservationCancelledEvent
+}
+
+
+sealed interface PendingReservationCancelledResult {
+    object Missing : PendingReservationCancelledResult
+    data class Success(val event: PendingReservationCancelledEvent) : PendingReservationCancelledResult
+}
+
+sealed class GetPendingReservationResult {
+    class PendingReservation(val reservation: Reservation) : GetPendingReservationResult()
+    object Missing : GetPendingReservationResult()
+}
+
+
 interface Session {
     fun createReservation(user: User, now: ZonedDateTime): SessionReservationResult
+    fun getPendingReservation(user: User): GetPendingReservationResult
     fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult
+    fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult
 }
 
 enum class SessionStatus {
@@ -68,8 +86,7 @@ enum class SessionStatus {
 data class SessionData(
     val id: SessionId,
     val scheduledAt: ZonedDateTime,
-    val pendingReservations: List<Reservation> = emptyList(),
-    val paidReservations: List<PaidReservation> = emptyList(),
+    val reservations: Reservations,
     val sessionStatus: SessionStatus,
     val coach: Coach
 ) {
@@ -88,22 +105,22 @@ data class SessionData(
             return SessionInvalid("session in unavailable")
         }
 
-        if (hasAlreadySignedUp(user, now)) {
+        if (sessionStatus == SessionStatus.Ready) {
+            return SessionFull
+        }
+
+        if (reservations.hasAlreadySignedUp(user, now)) {
             return AlreadyRequested
         }
 
-        val (levelMatches, requiredLevel) = levelMatches(user.level, now)
+        val (levelMatches, requiredLevel) = reservations.levelMatches(user.level, now)
         if (!levelMatches) {
             return InvalidLevel(requiredLevel)
         }
 
-        if (paidReservations.size == sessionSize) {
-            return SessionFull
-        }
-
-        val (pendingButNotPaid, till) = pendingButNotPaidReservations(now, sessionSize)
-        if (pendingButNotPaid) {
-            return PendingPayments(till)
+        val (isTemporaryFull, till) = reservations.isTemporaryFull(now, sessionSize)
+        if (isTemporaryFull) {
+            return TemporaryFull(till)
         }
 
         return ReservationCreated(
@@ -124,28 +141,38 @@ data class SessionData(
         sessionSize: Int,
     ): ReservationPaidResult {
         //co jak już opłacona ???
-        if (paidReservations.firstOrNull { it.reservationId == reservation.id } != null) {
+        if (reservations.hasPaidReservationFor(reservation.id)) {
 
         }
 
         //co jak już mamy komplet ?
-        if (paidReservations.size == sessionSize) {
+        if (sessionStatus == SessionStatus.Ready) {
             return SessionOverflow(ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow()))
         }
+        //Co bedzie jak sessionStatus == Cancelled - bo coach zcancelował sesje...
         return success(reservation, now, sessionSize)
     }
 
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult {
-        val paidReservation = paidReservations.find { it.user.id == user.id && it.status == PaidReservationStatus.PAID }
-        return if (paidReservation == null) {
+        //co będzie jak session jest cancelled bo coach zcancellował sesje?
+
+        val deadline = getCancellationDeadline()
+        if (now.isAfter(deadline)) {
+            return PaidReservationCancelledResult.TooLate(deadline)
+        }
+
+        val cancellations = reservations.cancelPaidFor(user, now)
+        return if (cancellations == null) {
             PaidReservationCancelledResult.Missing
         } else {
-            val deadline = getCancellationDeadline()
-            if (now.isAfter(deadline)) {
-                PaidReservationCancelledResult.TooLate(deadline)
-            } else {
-                success(paidReservation, now)
-            }
+            val events = listOf(
+                PaidReservationCancelledEvents.Cancelled(cancellations.second),
+                PaidReservationCancelledEvents.PendingRegistrationCancelled(cancellations.first),
+                PaidReservationCancelledEvents.SessionStatusUpdated(id, SessionStatus.Open)
+            )
+            PaidReservationCancelledResult.Success(
+                events
+            )
         }
     }
 
@@ -155,11 +182,10 @@ data class SessionData(
         now: ZonedDateTime,
         sessionSize: Int
     ): Success {
-        val pendingReservation = pendingReservations.first { it.id == reservation.id }
-        val reservations = pendingReservation.asPaid("someTransactionId", now)
-        val result = listOf(ReservationPaidEvents.ReservationPaid(reservations))
+        val reservationsUpdated = reservations.paidReservationFor(reservation.id, now)
+        val result = listOf(ReservationPaidEvents.ReservationPaid(reservationsUpdated))
 
-        val events = if (paidReservations.size + 1 == sessionSize) {
+        val events = if (reservations.getNumberOfPaidReservations() + 1 == sessionSize) {
             result + listOf(ReservationPaidEvents.SessionStatusUpdated(id, SessionStatus.Ready))
         } else result
 
@@ -170,68 +196,30 @@ data class SessionData(
         return scheduledAt.minusDays(1)
     }
 
-    private fun success(
-        reservationToCancel: PaidReservation,
-        now: ZonedDateTime
-    ): PaidReservationCancelledResult.Success {
-        val events = listOf(
-            PaidReservationCancelledEvents.Cancelled(
-                reservationToCancel.cancel(
-                    now
-                )
-            ), PaidReservationCancelledEvents.SessionStatusUpdated(id, SessionStatus.Open)
-        )
-        return PaidReservationCancelledResult.Success(
-            events
-        )
-    }
-
-    private fun pendingButNotPaidReservations(now: ZonedDateTime, sessionSize: Int): Pair<Boolean, ZonedDateTime> {
-        val lastHourPendingReservations = lastHourPendingReservations(now)
-        val oldestPending = lastHourPendingReservations.minBy { it.createdAt }
-        val till = oldestPending.createdAt.plusHours(1)
-
-        return if (paidReservations.size + lastHourPendingReservations.size >= sessionSize) {
-            Pair(true, till)
-        } else {
-            Pair(false, now.plusHours(1))
-        }
-    }
-
-    private fun hasAlreadySignedUp(user: User, now: ZonedDateTime): Boolean {
-        return paidReservations.any { it.user.id == user.id } ||
-                lastHourPendingReservations(now).any { it.user.id == user.id }
-    }
-
-    private fun levelMatches(level: Int, now: ZonedDateTime): Pair<Boolean, Int> {
-        val currentLevel = getCurrentLevel(now)
-        return if (currentLevel != null) {
-            Pair(currentLevel == level, currentLevel)
-        } else {
-            Pair(true, level)
-        }
-    }
-
-    private fun getCurrentLevel(now: ZonedDateTime): Int? {
-        return levelMatchesAgainstPaid() ?: return levelMatchesAgainstPending(now)
-    }
-
-    private fun levelMatchesAgainstPending(now: ZonedDateTime): Int? {
-        return lastHourPendingReservations(now).firstOrNull()?.user?.level
-
-    }
-
-    fun lastHourPendingReservations(now: ZonedDateTime): List<Reservation> {
-        val oneHourAgo = now.minus(1, ChronoUnit.HOURS)
-        return pendingReservations.filter { it.wasCreatedAfter(oneHourAgo) && it.isCreated() }
-    }
-
-    private fun levelMatchesAgainstPaid(): Int? {
-        return paidReservations.firstOrNull()?.user?.level
-    }
-
     private fun isInThePast(): Boolean {
         TODO("Not yet implemented")
+    }
+
+    fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult {
+        val reservationToCancel =
+            reservations.cancelPendingFor(user)
+        return if (reservationToCancel == null) {
+            PendingReservationCancelledResult.Missing
+        } else {
+            PendingReservationCancelledResult.Success(
+                event = PendingReservationCancelledEvent.Cancelled(reservationToCancel)
+            )
+
+        }
+    }
+
+    fun getPendingReservationFor(user: User): GetPendingReservationResult {
+        val pendingReservation = reservations.getPendingReservationFor(user)
+        return if (pendingReservation == null) {
+            GetPendingReservationResult.Missing
+        } else {
+            GetPendingReservationResult.PendingReservation(pendingReservation)
+        }
     }
 }
 
@@ -269,6 +257,10 @@ class FourToOneSession(val sessionData: SessionData, val cost: FastMoney) :
         return sessionData.canAccept(user, 4, now, cost)
     }
 
+    override fun getPendingReservation(user: User): GetPendingReservationResult {
+        return sessionData.getPendingReservationFor(user)
+    }
+
     override fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult {
         return sessionData.paid(reservation, now, 4)
     }
@@ -276,4 +268,9 @@ class FourToOneSession(val sessionData: SessionData, val cost: FastMoney) :
     override fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult {
         return sessionData.cancelPaidReservation(user, now)
     }
+
+    override fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult {
+        return sessionData.cancelPendingReservation(user, now)
+    }
+
 }
