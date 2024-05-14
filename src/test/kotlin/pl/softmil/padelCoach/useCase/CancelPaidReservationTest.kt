@@ -1,7 +1,9 @@
 package pl.softmil.padelCoach.useCase
 
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers
+import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.empty
+import org.hamcrest.Matchers.`is`
 import org.javamoney.moneta.FastMoney
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,7 +22,7 @@ import java.util.UUID
 class CancelPaidReservationTest {
     private val fakeDb = InMemoryDB()
     private val sut = CancelPaidReservation(fakeDb, fakeDb, fakeDb)
-    val now = ZonedDateTime.now()
+    private val now = ZonedDateTime.now()
 
     private val reservation = Reservation(
         ReservationId(UUID.randomUUID()),
@@ -59,27 +61,27 @@ class CancelPaidReservationTest {
 
         val cancelPaidReservationResult = sut.cancel(reservation.user.id, reservation.sessionId, now)
 
-        assertThat(cancelPaidReservationResult, Matchers.`is`(CancelPaidReservationResult.Success))
-        assertThat(fakeDb.reservations, Matchers.contains(reservation.copy(status = ReservationStatus.PAID_CANCELLED)))
+        assertThat(cancelPaidReservationResult, `is`(CancelPaidReservationResult.Success))
+        assertThat(fakeDb.reservations, contains(reservation.copy(status = ReservationStatus.PAID_CANCELLED)))
         val expectedCancelledPaidReservation =
             paidReservation.copy(status = PaidReservationStatus.USER_CANCELLED, cancelledAt = now)
         assertThat(
             fakeDb.paidReservations,
-            Matchers.contains(expectedCancelledPaidReservation)
+            contains(expectedCancelledPaidReservation)
         )
         assertThat(
             fakeDb.toPayBackReservations,
-            Matchers.contains(expectedCancelledPaidReservation)
+            contains(expectedCancelledPaidReservation)
         )
 
         assertThat(
             fakeDb.sessionData.sessionStatus,
-            Matchers.`is`(SessionStatus.Open)
+            `is`(SessionStatus.Open)
         )
 
         assertThat(
             fakeDb.toPayBackReservations,
-            Matchers.contains(expectedCancelledPaidReservation)
+            contains(expectedCancelledPaidReservation)
         )
     }
 
@@ -98,19 +100,19 @@ class CancelPaidReservationTest {
 
         assertThat(
             cancelPaidReservationResult,
-            Matchers.`is`(CancelPaidReservationResult.TooLate(scheduledAt.minus(cancelBeforeScheduled)))
+            `is`(CancelPaidReservationResult.TooLate(scheduledAt.minus(cancelBeforeScheduled)))
         )
         assertThat(
             fakeDb.paidReservations,
-            Matchers.contains(paidReservation)
+            contains(paidReservation)
         )
         assertThat(
             fakeDb.reservations,
-            Matchers.contains(reservation)
+            contains(reservation)
         )
         assertThat(
             fakeDb.toPayBackReservations,
-            Matchers.empty()
+            empty()
         )
     }
 
@@ -125,19 +127,19 @@ class CancelPaidReservationTest {
 
         assertThat(
             cancelPaidReservationResult,
-            Matchers.`is`(CancelPaidReservationResult.SessionCancelled)
+            `is`(CancelPaidReservationResult.SessionCancelled)
         )
         assertThat(
             fakeDb.paidReservations,
-            Matchers.contains(paidReservation)
+            contains(paidReservation)
         )
         assertThat(
             fakeDb.reservations,
-            Matchers.contains(reservation)
+            contains(reservation)
         )
         assertThat(
             fakeDb.toPayBackReservations,
-            Matchers.empty()
+            empty()
         )
     }
 
@@ -154,19 +156,19 @@ class CancelPaidReservationTest {
 
         assertThat(
             cancelPaidReservationResult,
-            Matchers.`is`(CancelPaidReservationResult.Invalid)
+            `is`(CancelPaidReservationResult.Invalid)
         )
         assertThat(
             fakeDb.paidReservations,
-            Matchers.empty()
+            empty()
         )
         assertThat(
             fakeDb.reservations,
-            Matchers.contains(reservation)
+            contains(reservation)
         )
         assertThat(
             fakeDb.toPayBackReservations,
-            Matchers.empty()
+            empty()
         )
     }
 
