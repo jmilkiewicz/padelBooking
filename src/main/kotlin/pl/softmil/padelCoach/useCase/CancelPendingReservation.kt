@@ -28,8 +28,6 @@ class CancelPendingReservation(
         val result = session.cancelPendingReservation(user, now)
         return when (result) {
             is PendingReservationCancelledResult.Missing -> CancelPendingReservationResult.Missing
-            is PendingReservationCancelledResult.InvalidStatus ->
-                CancelPendingReservationResult.InvalidStatus(result.state)
             is PendingReservationCancelledResult.Success -> {
                 handleEvent(result.event)
                 CancelPendingReservationResult.Success

@@ -62,19 +62,18 @@ sealed interface PendingReservationCancelledEvent {
 
 sealed interface PendingReservationCancelledResult {
     object Missing : PendingReservationCancelledResult
-    data class InvalidStatus(val state: ReservationStatus) : PendingReservationCancelledResult
     data class Success(val event: PendingReservationCancelledEvent) : PendingReservationCancelledResult
 }
 
-sealed class GetPendingReservationResult {
-    class PendingReservation(val reservation: Reservation) : GetPendingReservationResult()
-    object Missing : GetPendingReservationResult()
+sealed class PaymentInitialisationResult {
+    class PendingReservation(val reservation: Reservation) : PaymentInitialisationResult()
+    object Missing : PaymentInitialisationResult()
 }
 
 
 interface Session {
     fun createReservation(user: User, now: ZonedDateTime): SessionReservationResult
-    fun getPendingReservation(user: User): GetPendingReservationResult
+    fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult
     fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult
     fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult
@@ -202,30 +201,25 @@ data class SessionData(
     }
 
     fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult {
-        val reservationToCancel =
-            reservations.cancelPendingFor(user)
+        val cancelPendingReservationFor = reservations.cancelPendingReservationFor(user, now)
 
-        return if (reservationToCancel == null) {
+        return if (cancelPendingReservationFor == null) {
             PendingReservationCancelledResult.Missing
         } else {
-            if (reservationToCancel.status != ReservationStatus.CREATED) {
-                PendingReservationCancelledResult.InvalidStatus(reservationToCancel.status)
-            } else {
-                PendingReservationCancelledResult.Success(
-                    event = PendingReservationCancelledEvent.Cancelled(
-                        reservationToCancel.copy(status = ReservationStatus.USER_CANCELLED)
-                    )
+            PendingReservationCancelledResult.Success(
+                event = PendingReservationCancelledEvent.Cancelled(
+                    cancelPendingReservationFor
                 )
-            }
+            )
         }
     }
 
-    fun getPendingReservationFor(user: User): GetPendingReservationResult {
-        val pendingReservation = reservations.getPendingReservationFor(user)
+    fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
+        val pendingReservation = reservations.findCanBaPaidReservationFor(user, now)
         return if (pendingReservation == null) {
-            GetPendingReservationResult.Missing
+            PaymentInitialisationResult.Missing
         } else {
-            GetPendingReservationResult.PendingReservation(pendingReservation)
+            PaymentInitialisationResult.PendingReservation(pendingReservation)
         }
     }
 }
@@ -235,7 +229,7 @@ class OneOnOneSession(val sessionData: SessionData, val cost: FastMoney) : Sessi
         return sessionData.canAccept(user, 1, now, cost)
     }
 
-    override fun getPendingReservation(user: User): GetPendingReservationResult {
+    override fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
         TODO("Not yet implemented")
     }
 
@@ -257,8 +251,8 @@ class TwoOnOneSession(val sessionData: SessionData, val cost: FastMoney) : Sessi
         return sessionData.canAccept(user, 2, now, cost)
     }
 
-    override fun getPendingReservation(user: User): GetPendingReservationResult {
-        TODO("Not yet implemented")
+    override fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
+        return sessionData.initiatePayment(user, now)
     }
 
     override fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult {
@@ -280,8 +274,8 @@ class FourToOneSession(val sessionData: SessionData, val cost: FastMoney) :
         return sessionData.canAccept(user, 4, now, cost)
     }
 
-    override fun getPendingReservation(user: User): GetPendingReservationResult {
-        return sessionData.getPendingReservationFor(user)
+    override fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
+        return sessionData.initiatePayment(user, now)
     }
 
     override fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult {

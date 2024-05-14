@@ -12,24 +12,27 @@ class Reservations(
 ) {
 
     fun isTemporaryFull(now: ZonedDateTime, sessionSize: Int): Pair<Boolean, ZonedDateTime> {
-        val lastHourPendingReservations = lastHourPendingReservations(now)
-        val oldestPending = lastHourPendingReservations.minBy { it.createdAt }
+        val canBePaidReservations = findCanBePaidReservations(now)
+        val oldestPending = canBePaidReservations.minBy { it.createdAt }
         val till = oldestPending.createdAt.plus(pendingReservationTTL)
 
-        return if (paidReservations.size + lastHourPendingReservations.size >= sessionSize) {
+        return if (paidReservations.size + canBePaidReservations.size >= sessionSize) {
             Pair(true, till)
         } else {
             Pair(false, now.plus(pendingReservationTTL))
         }
     }
 
-    private fun lastHourPendingReservations(now: ZonedDateTime): List<Reservation> {
-        val oneHourAgo = now.minus(pendingReservationTTL)
-        return pendingReservations.filter { it.wasCreatedAfter(oneHourAgo) && it.isCreated() }
+    private fun findCanBePaidReservations(now: ZonedDateTime): List<Reservation> {
+        val reservationsDeadline = reservationsDeadline(now)
+        return pendingReservations.filter { it.canBePaid(reservationsDeadline) }
     }
 
+    private fun reservationsDeadline(now: ZonedDateTime): ZonedDateTime = now.minus(pendingReservationTTL)
+
+
     private fun levelMatchesAgainstPending(now: ZonedDateTime): Int? {
-        return lastHourPendingReservations(now).firstOrNull()?.user?.level
+        return findCanBePaidReservations(now).firstOrNull()?.user?.level
 
     }
 
@@ -39,7 +42,7 @@ class Reservations(
 
     fun hasAlreadySignedUp(user: User, now: ZonedDateTime): Boolean {
         return paidReservations.any { it.user.id == user.id } ||
-                lastHourPendingReservations(now).any { it.user.id == user.id }
+                findCanBePaidReservations(now).any { it.user.id == user.id }
     }
 
     fun levelMatches(level: Int, now: ZonedDateTime): Pair<Boolean, Int> {
@@ -93,12 +96,27 @@ class Reservations(
             }
     }
 
-    fun cancelPendingFor(user: User): Reservation? {
-        return pendingReservations.find { it.user.id == user.id }
+    fun getFreshestPendingReservationFor(user: User): Reservation? {
+        return pendingReservations.filter { it.user.id == user.id }.maxByOrNull { it.createdAt }
     }
 
-    fun getPendingReservationFor(user: User): Reservation? {
-        return pendingReservations.find { it.user.id == user.id && it.status == ReservationStatus.CREATED }
+    fun cancelPendingReservationFor(user: User, now: ZonedDateTime): Reservation? {
+        val reservationToCancel = getFreshestPendingReservationFor(user)
+
+        return reservationToCancel?.let {
+            if (reservationToCancel.canBeCancelled(reservationsDeadline(now))) {
+                reservationToCancel.copy(status = ReservationStatus.USER_CANCELLED)
+            } else null
+        }
+    }
+
+    fun findCanBaPaidReservationFor(user: User, now: ZonedDateTime): Reservation? {
+        val freshestPendingReservationFor = getFreshestPendingReservationFor(user)
+        return freshestPendingReservationFor?.let {
+            if (it.canBePaid(reservationsDeadline(now))) {
+                it
+            } else null
+        }
     }
 
 }

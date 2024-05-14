@@ -20,20 +20,26 @@ data class Reservation(
     val cost: FastMoney,
     val status: ReservationStatus
 ) {
-    fun wasCreatedAfter(ts: ZonedDateTime): Boolean = ts.isBefore(createdAt)
-
-    fun isCreated(): Boolean = this.status == ReservationStatus.CREATED
     fun asOverflow(): Reservation {
         return this.copy(status = ReservationStatus.OVERFLOW)
     }
 
-    fun cancel(): Reservation {
-        return this.copy(status = ReservationStatus.USER_CANCELLED)
+    fun canBeCancelled(deadline: ZonedDateTime): Boolean {
+        return canBePaid(deadline)
     }
+
+    fun canBePaid(deadline: ZonedDateTime): Boolean {
+        return (isCreated() && !isExpired(deadline))
+    }
+
+    private fun isExpired(deadline: ZonedDateTime): Boolean = createdAt.isBefore(deadline)
+
+    private fun isCreated(): Boolean = this.status == ReservationStatus.CREATED
 
     fun paidReservationCancelled(): Reservation {
         return this.copy(status = ReservationStatus.PAID_CANCELLED)
     }
+
 
 }
 
