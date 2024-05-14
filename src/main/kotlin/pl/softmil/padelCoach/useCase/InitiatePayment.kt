@@ -23,7 +23,7 @@ sealed interface InitiatePaymentResult {
 class InitiatePayment(
     private val sessionRepository: SessionRepository, private val userRepository: UserRepository
 ) {
-    fun execute(userId: UserId, sessionId: SessionId, now: ZonedDateTime): InitiatePaymentResult {
+    fun initiate(userId: UserId, sessionId: SessionId, now: ZonedDateTime): InitiatePaymentResult {
         val user = getUserById(userId)
         val session = getSessionById(sessionId)
 
