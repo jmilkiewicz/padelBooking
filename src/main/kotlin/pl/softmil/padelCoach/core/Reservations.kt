@@ -13,15 +13,19 @@ class Reservations(
 
     fun isTemporaryFull(now: ZonedDateTime, sessionSize: Int): Pair<Boolean, ZonedDateTime> {
         val canBePaidReservations = findCanBePaidReservations(now)
-        val oldestPending = canBePaidReservations.minBy { it.createdAt }
-        val till = oldestPending.createdAt.plus(pendingReservationTTL)
 
-        return if (paidReservations.size + canBePaidReservations.size >= sessionSize) {
+
+        return if (paidNotCancelledReservations().size + canBePaidReservations.size >= sessionSize) {
+            val oldestPending = canBePaidReservations.minBy { it.createdAt }
+            val till = oldestPending.createdAt.plus(pendingReservationTTL)
             Pair(true, till)
         } else {
             Pair(false, now.plus(pendingReservationTTL))
         }
     }
+
+    private fun paidNotCancelledReservations(): List<PaidReservation> =
+        paidReservations.filter { it.status == PaidReservationStatus.PAID }
 
     private fun findCanBePaidReservations(now: ZonedDateTime): List<Reservation> {
         val reservationsDeadline = reservationsDeadline(now)
@@ -41,7 +45,7 @@ class Reservations(
     }
 
     fun hasAlreadySignedUp(user: User, now: ZonedDateTime): Boolean {
-        return paidReservations.any { it.user.id == user.id } ||
+        return paidNotCancelledReservations().any { it.user.id == user.id } ||
                 findCanBePaidReservations(now).any { it.user.id == user.id }
     }
 
@@ -110,7 +114,7 @@ class Reservations(
         }
     }
 
-    fun findCanBaPaidReservationFor(user: User, now: ZonedDateTime): Reservation? {
+    fun findCanBePaidReservationFor(user: User, now: ZonedDateTime): Reservation? {
         val freshestPendingReservationFor = getFreshestPendingReservationFor(user)
         return freshestPendingReservationFor?.let {
             if (it.canBePaid(reservationsDeadline(now))) {

@@ -73,8 +73,8 @@ sealed class PaymentInitialisationResult {
 
 interface Session {
     fun createReservation(user: User, now: ZonedDateTime): SessionReservationResult
-    fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult
     fun reservationPaid(reservation: Reservation, now: ZonedDateTime): ReservationPaidResult
+    fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult
     fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult
 }
@@ -97,7 +97,7 @@ data class SessionData(
         now: ZonedDateTime,
         cost: FastMoney
     ): SessionReservationResult {
-        if (isInThePast()) {
+        if (isInThePast(now)) {
             return SessionInvalid("already took place")
         }
 
@@ -140,21 +140,24 @@ data class SessionData(
         now: ZonedDateTime,
         sessionSize: Int,
     ): ReservationPaidResult {
-        //co jak już opłacona ???
+        //TODO  co jak już opłacona ???
         if (reservations.hasPaidReservationFor(reservation.id)) {
 
         }
 
-        //co jak już mamy komplet ?
         if (sessionStatus == SessionStatus.Ready) {
+            //już mamy komplet
+            //TODO czy powinienem także zapisać PaidReservation z jakimś specjalnym stanem?
             return SessionOverflow(ReservationPaidEvents.ReservationToBeRepaid(reservation.asOverflow()))
         }
-        //Co bedzie jak sessionStatus == Cancelled - bo coach zcancelował sesje...
+        //TODO Co bedzie jak sessionStatus == Cancelled - bo coach zcancelował sesje...
+
+
         return success(reservation, now, sessionSize)
     }
 
     fun cancelPaidReservation(user: User, now: ZonedDateTime): PaidReservationCancelledResult {
-        //co będzie jak session jest cancelled bo coach zcancellował sesje?
+        //TODO co będzie jak session jest cancelled bo coach zcancellował sesje?
 
         val deadline = getCancellationDeadline()
         if (now.isAfter(deadline)) {
@@ -196,9 +199,7 @@ data class SessionData(
         return scheduledAt.minusDays(1)
     }
 
-    private fun isInThePast(): Boolean {
-        TODO("Not yet implemented")
-    }
+    private fun isInThePast(now: ZonedDateTime): Boolean = scheduledAt.isBefore(now)
 
     fun cancelPendingReservation(user: User, now: ZonedDateTime): PendingReservationCancelledResult {
         val cancelPendingReservationFor = reservations.cancelPendingReservationFor(user, now)
@@ -215,7 +216,8 @@ data class SessionData(
     }
 
     fun initiatePayment(user: User, now: ZonedDateTime): PaymentInitialisationResult {
-        val pendingReservation = reservations.findCanBaPaidReservationFor(user, now)
+        //TODO co bedzie jak sesja jest cancel prze coach
+        val pendingReservation = reservations.findCanBePaidReservationFor(user, now)
         return if (pendingReservation == null) {
             PaymentInitialisationResult.Missing
         } else {
