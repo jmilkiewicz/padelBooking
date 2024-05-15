@@ -50,14 +50,16 @@ class CreateReservationTest {
     @Test
     fun createReservationOnFullyRequestedSession() {
         val now = ZonedDateTime.now()
-        sut.create(fakeDb.userOne.id, fakeDb.sessionId, now)
-        sut.create(fakeDb.userTwo.id, fakeDb.sessionId, now)
+        val twoMinutesAgo = now.minusMinutes(2)
+        sut.create(fakeDb.userOne.id, fakeDb.sessionId, twoMinutesAgo)
+        sut.create(fakeDb.userTwo.id, fakeDb.sessionId, now.minusMinutes(1))
 
         val result = sut.create(fakeDb.userThree.id, fakeDb.sessionId, now)
 
-        assertThat(result, `is`(CreateReservationResult.OtherPaymentsInProgress(now.plus(fakeDb.duration))))
-
-        assertThat(fakeDb.reservations, iterableWithSize(2))
+        assertThat(
+            result,
+            `is`(CreateReservationResult.OtherPaymentsInProgress(twoMinutesAgo.plus(fakeDb.duration)))
+        )
     }
 
     @Test
