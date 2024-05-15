@@ -41,7 +41,7 @@ class Reservations(
     }
 
     private fun levelMatchesAgainstPaid(): Int? {
-        return paidReservations.firstOrNull()?.user?.level
+        return paidNotCancelledReservations().firstOrNull()?.user?.level
     }
 
     fun hasAlreadySignedUp(user: User, now: ZonedDateTime): Boolean {
