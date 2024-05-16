@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>pl.softmil</groupId>
-	<artifactId>padelCoach</artifactId>
+	<artifactId>padelBooking</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>padelCoach</name>
 	<description>Demo project for Spring Boot</description>
