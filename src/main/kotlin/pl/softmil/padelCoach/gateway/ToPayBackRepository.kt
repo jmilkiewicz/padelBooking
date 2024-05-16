@@ -1,9 +1,12 @@
 package pl.softmil.padelCoach.gateway
 
-import pl.softmil.padelCoach.core.PaidReservation
+import pl.softmil.padelCoach.core.PaidReservationCancelledEvents
+import pl.softmil.padelCoach.core.ReservationPaidEvents
+import pl.softmil.padelCoach.core.SessionCancelledEvents
 
 
 interface ToPayBackRepository {
-    fun payBack(reservation: PaidReservation)
-    fun payBack(reservations: List<PaidReservation>)
+    fun handlePaidReservationCancelledEvents(events: List<PaidReservationCancelledEvents>)
+    fun handleReservationToBeRepaid(event: ReservationPaidEvents.ReservationToBeRepaid)
+    fun handleSessionCancelledEvents(events: List<SessionCancelledEvents>)
 }

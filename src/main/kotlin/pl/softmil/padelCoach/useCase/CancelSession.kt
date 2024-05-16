@@ -32,9 +32,7 @@ class CancelSession(
 
     private fun handleEvents(events: List<SessionCancelledEvents>) {
         sessionRepository.persistSessionCancelledEvents(events)
-        val toPayBack =
-            events.filterIsInstance<SessionCancelledEvents.PaidReservationsToCancel>().flatMap { it.reservations }
-        toPayBackRepository.payBack(toPayBack)
+        toPayBackRepository.handleSessionCancelledEvents(events)
     }
 
     private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)

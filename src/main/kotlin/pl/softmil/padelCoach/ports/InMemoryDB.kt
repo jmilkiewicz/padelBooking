@@ -144,12 +144,36 @@ class InMemoryDB : SessionRepository, ResevationRepository, UserRepository, ToPa
         reservations.add(res)
     }
 
-    override fun payBack(reservation: PaidReservation) {
+    private fun payBack(reservation: PaidReservation) {
         toPayBackReservations.add(reservation)
     }
 
-    override fun payBack(reservations: List<PaidReservation>) {
+    private fun payBack(reservations: List<PaidReservation>) {
         toPayBackReservations.addAll(reservations)
+    }
+
+    override fun handlePaidReservationCancelledEvents(events: List<PaidReservationCancelledEvents>) {
+        events.forEach { event ->
+            when (event) {
+                is PaidReservationCancelledEvents.Cancelled -> payBack(event.paidReservation)
+                else -> Unit
+            }
+
+        }
+    }
+
+    override fun handleReservationToBeRepaid(event: ReservationPaidEvents.ReservationToBeRepaid) {
+        payBack(event.paidReservation)
+    }
+
+    override fun handleSessionCancelledEvents(events: List<SessionCancelledEvents>) {
+        events.forEach { event ->
+            when (event) {
+                is SessionCancelledEvents.PaidReservationsToCancel -> payBack(event.reservations)
+                else -> Unit
+            }
+        }
+
     }
 
 

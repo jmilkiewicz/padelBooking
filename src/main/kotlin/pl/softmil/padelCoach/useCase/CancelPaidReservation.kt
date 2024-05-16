@@ -2,7 +2,6 @@ package pl.softmil.padelCoach.useCase
 
 import pl.softmil.padelCoach.core.PaidReservationCancelledEvents
 import pl.softmil.padelCoach.core.PaidReservationCancelledResult
-import pl.softmil.padelCoach.core.Session
 import pl.softmil.padelCoach.core.SessionId
 import pl.softmil.padelCoach.core.User
 import pl.softmil.padelCoach.core.UserId
@@ -30,7 +29,9 @@ class CancelPaidReservation(
 ) {
     fun cancel(userId: UserId, sessionId: SessionId, now: ZonedDateTime): CancelPaidReservationResult {
         val user = getUserById(userId)
-        val session = getSessionById(sessionId)
+
+
+        val session = sessionRepository.getSessionById(sessionId)
 
         return when (val result = session.cancelPaidReservation(user, now)) {
             is PaidReservationCancelledResult.Missing -> Invalid
@@ -47,12 +48,8 @@ class CancelPaidReservation(
 
     private fun handleEvents(events: List<PaidReservationCancelledEvents>) {
         sessionRepository.persistPaidReservationCancelledEvents(events)
-        val toPayBack = events.filterIsInstance<PaidReservationCancelledEvents.Cancelled>().map { it.paidReservation }
-        toPayBackRepository.payBack(toPayBack)
+        toPayBackRepository.handlePaidReservationCancelledEvents(events)
     }
-
-    private fun getSessionById(sessionId: SessionId): Session = sessionRepository.getSessionById(sessionId)
-
 
     private fun getUserById(userId: UserId): User = userRepository.getUserById(userId)
 }
